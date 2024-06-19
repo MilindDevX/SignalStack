@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String 
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teamMemberships     TeamMember[]
+  messages            Message[]
+  reactions           Reaction[]
+  decisions           Decision[]
+  mentions            Mention[]
+  joinRequests        JoinRequest[]
+  invitationsSent     Invitation[] @relation("InvitationsSent")
+  invitationsReceived Invitation[] @relation("InvitationsReceived")
+  notifications       Notification[]
+
+  @@map("users")
+}
+
+model Team {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String    @unique @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Soft delete fields
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+
+  members      TeamMember[]
+  channels     Channel[]
+  joinRequests JoinRequest[]
+  invitations  Invitation[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+  isActive Boolean  @default(true)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   @default("PUBLIC")
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId    String
+  team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  decisions Decision[]
+
+  @@unique([teamId, name])
+  @@map("channels")
+}
+
+// ============================================================================
+// MESSAGING
+// ============================================================================
+
+model Message {
+  id        String    @id @default(cuid())
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Threading
+  parentId String?
+  parent   Message?  @relation("MessageThread", fields: [parentId], references: [id])
+  replies  Message[] @relation("MessageThread")
+
+  // Relations
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+  mentions  Mention[]
+  decision  Decision?
+
+  // Analytics metadata
+  wordCount     Int     @default(0)
+  hasQuestion   Boolean @default(false)
+  hasDecision   Boolean @default(false)
+
+  @@index([channelId, createdAt])
+  @@index([authorId])
+  @@map("messages")
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@map("reactions")
+}
+
+model Mention {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@map("mentions")
+}
+
+// ============================================================================
+// DECISIONS
+// ============================================================================
+
+model Decision {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("OPEN") // OPEN, CLOSED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  closedAt    DateTime?
+
+  // Closure details
+  closureReason String?  // e.g., "Superseded by new decision", "Resolved", "Cancelled"
+
+  // Owner of the decision
+  ownerId   String
+  owner     User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Channel association (required)
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  
+  // Optional message link (for message-based decisions)
+  messageId String?  @unique
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  // Superseding relationship (self-referential)
+  supersedesDecisionId String?
+  supersedesDecision   Decision?  @relation("DecisionSupersedes", fields: [supersedesDecisionId], references: [id])
+  supersededBy         Decision[] @relation("DecisionSupersedes")
+
+  @@map("decisions")
+}
+
+// ============================================================================
+// TEAM JOIN REQUESTS & INVITATIONS
+// ============================================================================
+
+model JoinRequest {
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("join_requests")
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inviterId String
+  inviter   User   @relation("InvitationsSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId String
+  invitee   User   @relation("InvitationsReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteeId, teamId])
+  @@map("invitations")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // INVITE_RECEIVED, REQUEST_APPROVED, REQUEST_REJECTED, TEAM_JOINED
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  data      Json?    // Additional data like teamId, invitationId, etc.
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
