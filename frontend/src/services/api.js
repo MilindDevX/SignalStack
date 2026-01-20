@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL + "/api" || 'http://localhost:3001/api'
 
 class ApiClient {
   getToken() {
@@ -8,7 +8,7 @@ class ApiClient {
   getHeaders(isJson = true) {
     const headers = {};
     if (isJson) headers['Content-Type'] = 'application/json';
-    
+
     const token = this.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -18,7 +18,7 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`
-    
+
     const config = {
       headers: this.getHeaders(),
       ...options,
@@ -26,7 +26,7 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config)
-      
+
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error?.message || 'API request failed')
