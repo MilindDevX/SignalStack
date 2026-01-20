@@ -126,6 +126,37 @@ SignalStack/
 │   │   │   ├── authMiddleware.js
 │   │   │   ├── errorHandler.js
 │   │   │   └── roleAuth.js
+│   │   └── index.js
+│   ├── package.json
+│   └── .env
+│   │   │   ├── channelController.js
+│   │   │   ├── messageController.js
+│   │   │   ├── analyticsController.js
+│   │   │   ├── decisionController.js
+│   │   │   ├── notificationController.js
+│   │   │   └── userController.js
+│   │   ├── services/
+│   │   │   ├── authService.js
+│   │   │   ├── teamService.js
+│   │   │   ├── channelService.js
+│   │   │   ├── messageService.js
+│   │   │   ├── analyticsService.js
+│   │   │   ├── decisionService.js
+│   │   │   ├── notificationService.js
+│   │   │   └── userService.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   │   ├── teams.js
+│   │   │   ├── channels.js
+│   │   │   ├── messages.js
+│   │   │   ├── analytics.js
+│   │   │   ├── decisions.js
+│   │   │   ├── notifications.js
+│   │   │   └── users.js
+│   │   ├── middlewares/
+│   │   │   ├── authMiddleware.js
+│   │   │   ├── errorHandler.js
+│   │   │   └── roleAuth.js
 │   │   ├── utils/
 │   │   │   └── nlp.js
 │   │   └── index.js
