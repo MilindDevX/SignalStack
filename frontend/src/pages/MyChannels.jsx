@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiClient } from '../services/api'
 
 function MyChannels() {
-  const { currentUser, currentTeam } = useAuth()
+  const { currentUser, currentTeam, isManager } = useAuth()
   const [channels, setChannels] = useState([])
   const [selectedChannel, setSelectedChannel] = useState(null)
   const [messages, setMessages] = useState([])
@@ -80,13 +80,12 @@ function MyChannels() {
     }
   }
 
-  // Mark a message as decision - show supersede modal first
+  // Mark message as decision (leads see supersede modal, members mark directly)
   const handleMarkAsDecision = async (messageId) => {
     setPendingDecisionMessageId(messageId)
     setActiveMessageMenu(null)
     
-    // Load open decisions for superseding selection
-    if (currentTeam?.id) {
+    if (isManager && currentTeam?.id) {
       setLoadingOpenDecisions(true)
       try {
         const decisions = await apiClient.getOpenDecisionsByTeam(currentTeam.id)
@@ -97,9 +96,20 @@ function MyChannels() {
       } finally {
         setLoadingOpenDecisions(false)
       }
+      setShowSupersedeModal(true)
+    } else {
+      try {
+        await apiClient.markMessageAsDecision(messageId, null)
+        setMessages(messages.map(msg => 
+          msg.id === messageId ? { ...msg, hasDecision: true } : msg
+        ))
+        setPendingDecisionMessageId(null)
+      } catch (err) {
+        console.error('Failed to mark as decision:', err)
+        alert(err.message || 'Failed to mark as decision')
+        setPendingDecisionMessageId(null)
+      }
     }
-    
-    setShowSupersedeModal(true)
   }
 
   // Confirm decision creation (with or without superseding)
@@ -107,7 +117,7 @@ function MyChannels() {
     if (!pendingDecisionMessageId) return
 
     try {
-      await apiClient.markMessageAsDecision(pendingDecisionMessageId, selectedSupersedeId)
+      await apiClient.markMessageAsDecision(pendingDecisionMessageId, selectedSupersedeId, currentTeam?.role)
       setMessages(messages.map(msg => 
         msg.id === pendingDecisionMessageId ? { ...msg, hasDecision: true } : msg
       ))
@@ -145,7 +155,7 @@ function MyChannels() {
         title: decisionTitle.trim(),
         status: decisionStatus,
         supersedesDecisionId: supersedesDecisionId
-      })
+      }, currentTeam?.role)
       setShowDecisionModal(false)
       setDecisionTitle('')
       setDecisionStatus('OPEN')
@@ -398,8 +408,8 @@ function MyChannels() {
                 </select>
               </div>
 
-              {/* Supersede selection */}
-              {openDecisions.length > 0 && (
+              {/* Supersede selection (leads only) */}
+              {isManager && openDecisions.length > 0 && (
                 <div>
                   <label htmlFor="supersedeDecision" className="block text-sm font-medium text-slate-700 mb-1">Replaces existing decision?</label>
                   <select

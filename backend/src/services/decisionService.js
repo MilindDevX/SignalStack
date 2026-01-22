@@ -217,11 +217,13 @@ const DECISION_INCLUDE = {
     }
 };
 
-/**
- * Create decision from a message with optional superseding
- */
+// Create decision from message (only leads can supersede)
 async function createFromMessage(messageId, userId, options = {}) {
-    const { supersedesDecisionId = null } = options;
+    const { supersedesDecisionId = null, userRole = null } = options;
+
+    if (supersedesDecisionId && userRole && !['LEAD', 'MANAGER', 'OWNER'].includes(userRole)) {
+        throw new Error('Only leads can supersede decisions');
+    }
 
     const message = await prisma.message.findUnique({
         where: { id: messageId },
@@ -297,14 +299,16 @@ async function createFromMessage(messageId, userId, options = {}) {
     return result;
 }
 
-/**
- * Create manual decision with optional superseding
- */
+// Create manual decision (only leads can supersede)
 async function createManual(channelId, userId, decisionData) {
-    const { title, status = 'OPEN', supersedesDecisionId = null } = decisionData;
+    const { title, status = 'OPEN', supersedesDecisionId = null, userRole = null } = decisionData;
 
     if (!title || !title.trim()) {
         throw new Error('Decision title is required');
+    }
+
+    if (supersedesDecisionId && userRole && !['LEAD', 'MANAGER', 'OWNER'].includes(userRole)) {
+        throw new Error('Only leads can supersede decisions');
     }
 
     const channel = await prisma.channel.findUnique({

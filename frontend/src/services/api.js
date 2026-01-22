@@ -20,9 +20,10 @@ class ApiClient {
     const url = `${API_BASE_URL}${endpoint}`
 
     const config = {
-      headers: this.getHeaders(),
+      headers: { ...this.getHeaders(), ...options.customHeaders },
       ...options,
     }
+    delete config.customHeaders
 
     try {
       const response = await fetch(url, config)
@@ -279,11 +280,12 @@ class ApiClient {
     })
   }
 
-  // Mark a message as decision (with optional superseding)
-  markMessageAsDecision(messageId, supersedesDecisionId = null) {
+  // Mark message as decision
+  markMessageAsDecision(messageId, supersedesDecisionId = null, userRole = null) {
     return this.request(`/decisions/from-message/${messageId}`, {
       method: 'POST',
-      body: JSON.stringify({ supersedesDecisionId })
+      body: JSON.stringify({ supersedesDecisionId }),
+      customHeaders: userRole ? { 'x-user-role': userRole } : {}
     })
   }
 
@@ -335,11 +337,12 @@ class ApiClient {
     })
   }
 
-  // Create manual decision (with optional superseding)
-  createManualDecision(channelId, data) {
+  // Create manual decision
+  createManualDecision(channelId, data, userRole = null) {
     return this.request(`/decisions/channel/${channelId}`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      customHeaders: userRole ? { 'x-user-role': userRole } : {}
     })
   }
 

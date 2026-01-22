@@ -10,9 +10,11 @@ async function createFromMessage(req, res, next) {
         const { messageId } = req.params;
         const userId = req.user.id;
         const { supersedesDecisionId } = req.body || {};
+        const userRole = req.headers['x-user-role'] || null;
 
         const decision = await decisionService.createFromMessage(messageId, userId, {
-            supersedesDecisionId
+            supersedesDecisionId,
+            userRole
         });
         
         res.status(201).json({
@@ -34,8 +36,9 @@ async function createManual(req, res, next) {
         const { channelId } = req.params;
         const userId = req.user.id;
         const decisionData = req.body;
+        const userRole = req.headers['x-user-role'] || null;
 
-        const decision = await decisionService.createManual(channelId, userId, decisionData);
+        const decision = await decisionService.createManual(channelId, userId, { ...decisionData, userRole });
         
         res.status(201).json({
             success: true,
