@@ -24,3 +24,7 @@ npm-debug.log*
 
 # Prisma
 /generated/prisma
+.ai-workflow/
+.agent/
+.agents/
+Agent_Outputs/
